@@ -5,6 +5,7 @@
 ### Fixed
 
 - Fixed `Editor.addToHistory()` storing a prompt again when it was already in history; it now moves the existing entry to the most recent position ([#12279](https://github.com/earendil-works/pi/issues/12279))
+- Fixed `StdinBuffer` rescanning the whole bracketed paste for its end marker on every chunk, which made large pastes take time quadratic in their size ([#12224](https://github.com/earendil-works/pi/issues/12224))
 
 ## [1.6.0] - 2026-11-20
 
