@@ -62,12 +62,14 @@ const RetrySettingsSchema = Type.Object({
 		}),
 	),
 	maxAgentDelayMs: Type.Optional(Type.Number({ default: SETTINGS_DEFAULTS.retry.maxAgentDelayMs })),
-	jitterRatio: Type.Optional(Type.Number({
-		description: "Symmetric multiplicative retry jitter ratio in [0, 1]; 0 disables jitter.",
-		minimum: 0,
-		maximum: 1,
-		default: SETTINGS_DEFAULTS.retry.jitterRatio,
-	})),
+	jitterRatio: Type.Optional(
+		Type.Number({
+			description: "Symmetric multiplicative retry jitter ratio in [0, 1]; 0 disables jitter.",
+			minimum: 0,
+			maximum: 1,
+			default: SETTINGS_DEFAULTS.retry.jitterRatio,
+		}),
+	),
 	provider: Type.Optional(ProviderRetrySettingsSchema),
 	maxDelayMs: Type.Optional(
 		Type.Number({

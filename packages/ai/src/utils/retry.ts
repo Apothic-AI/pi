@@ -155,9 +155,10 @@ export function retryDelayMs(
 	const safeDelay = Number.isSafeInteger(delay) ? delay : Number.MAX_SAFE_INTEGER;
 	const cap = policy.maxAgentDelayMs ?? DEFAULT_MAX_AGENT_RETRY_DELAY_MS;
 	const deterministic = Math.min(safeDelay, cap);
-	const ratio = typeof policy.jitterRatio === "number" && Number.isFinite(policy.jitterRatio)
-		? Math.min(Math.max(policy.jitterRatio, 0), 1)
-		: 0;
+	const ratio =
+		typeof policy.jitterRatio === "number" && Number.isFinite(policy.jitterRatio)
+			? Math.min(Math.max(policy.jitterRatio, 0), 1)
+			: 0;
 	if (ratio === 0) return deterministic;
 	const sample = random();
 	const unit = Number.isFinite(sample) ? Math.min(Math.max(sample, 0), 1) : 0.5;
