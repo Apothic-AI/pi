@@ -23,7 +23,7 @@
 - Fixed provider errors reading "request rate increased too quickly", such as OpenAI Codex `slow_down` and Alibaba Qwen throttling, not being retried ([#12240](https://github.com/earendil-works/pi/issues/12240))
 - Fixed `openai-codex` starting GPT-6 requests at `medium` regardless of the selected thinking level. Requests now start at the selected effort and send updates only when it changes ([#12361](https://github.com/earendil-works/pi/issues/12361))
 - Fixed the model catalog still listing `gpt-5-chat-latest` for `openai` and `azure` after OpenAI shut it down on July 23, 2026 ([#12202](https://github.com/earendil-works/pi/issues/12202))
-- Fixed Anthropic, OpenAI Codex, Mistral, and pi-messages SSE streams rescanning an incomplete event on every chunk, which made large events take time quadratic in their size ([#12224](https://github.com/earendil-works/pi/issues/12224))
+- Fixed Anthropic, OpenAI Codex, Mistral, and pi-messages SSE streams rescanning an incomplete event on every chunk, which made large events take time quadratic in their size. All four now share one SSE parser, so OpenAI Codex and pi-messages also accept CRLF and lone CR line endings, pi-messages joins events with several `data:` lines, and Anthropic no longer ends an event at a CRLF split across chunks ([#12224](https://github.com/earendil-works/pi/issues/12224))
 
 ## [1.6.0] - 2026-11-20
 
