@@ -183,6 +183,13 @@
           "type": "number",
           "default": 60000
         },
+        "jitterRatio": {
+          "type": "number",
+          "description": "Symmetric multiplicative retry jitter ratio in [0, 1]; 0 disables jitter.",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0
+        },
         "provider": {
           "type": "object",
           "properties": {
