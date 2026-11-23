@@ -378,12 +378,13 @@ describe("SettingsManager", () => {
 				maxRetries: 3,
 				baseDelayMs: 2000,
 				maxAgentDelayMs: 60000,
+				jitterRatio: 0,
 			});
 			expect(
 				SettingsManager.inMemory({
-					retry: { enabled: true, maxRetries: 10, baseDelayMs: 500, maxAgentDelayMs: 5000 },
+					retry: { enabled: true, maxRetries: 10, baseDelayMs: 500, maxAgentDelayMs: 5000, jitterRatio: 0.35 },
 				}).getRetrySettings(),
-			).toEqual({ enabled: true, maxRetries: 10, baseDelayMs: 500, maxAgentDelayMs: 5000 });
+			).toEqual({ enabled: true, maxRetries: 10, baseDelayMs: 500, maxAgentDelayMs: 5000, jitterRatio: 0.35 });
 		});
 	});
 

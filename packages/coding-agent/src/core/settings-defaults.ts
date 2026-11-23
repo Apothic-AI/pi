@@ -20,6 +20,7 @@ export const SETTINGS_DEFAULTS = {
 		maxRetries: 3,
 		baseDelayMs: 2000,
 		maxAgentDelayMs: DEFAULT_MAX_AGENT_RETRY_DELAY_MS,
+		jitterRatio: 0,
 		provider: {
 			maxRetryDelayMs: 60000,
 		},
