@@ -172,7 +172,8 @@ const RETRYABLE_PROVIDER_ERROR_PATTERN = buildProviderErrorPattern([
 /**
  * Retry policy: bounded attempts with exponential backoff (`baseDelayMs * 2^(attempt-1)`).
  * `maxAgentDelayMs` caps each computed delay and defaults to 60 seconds.
- * Matches `settings.retry` (`enabled`, `maxRetries`, `baseDelayMs`, `maxAgentDelayMs`) in coding-agent; kept
+ * `jitterRatio` applies symmetric multiplicative jitter in [0, 1]; 0 preserves deterministic delay.
+ * Matches `settings.retry` (`enabled`, `maxRetries`, `baseDelayMs`, `maxAgentDelayMs`, `jitterRatio`) in coding-agent; kept
  * here so the classifier and the policy-driven retry loop live together and stay reusable
  * by the SDK and other callers.
  */
@@ -184,14 +185,29 @@ export interface RetryPolicy {
 	baseDelayMs: number;
 	/** Optional cap for agent-level retry delays in ms. Defaults to 60 seconds. */
 	maxAgentDelayMs?: number;
+	/** Symmetric multiplicative jitter ratio in [0, 1]; 0 disables jitter. */
+	jitterRatio?: number;
 }
 
 export const DEFAULT_MAX_AGENT_RETRY_DELAY_MS = 60_000;
 
-export function retryDelayMs(policy: Pick<RetryPolicy, "baseDelayMs" | "maxAgentDelayMs">, attempt: number): number {
+export function retryDelayMs(
+	policy: Pick<RetryPolicy, "baseDelayMs" | "maxAgentDelayMs" | "jitterRatio">,
+	attempt: number,
+	random: () => number = Math.random,
+): number {
 	const delay = policy.baseDelayMs * 2 ** Math.max(0, attempt - 1);
 	const safeDelay = Number.isSafeInteger(delay) ? delay : Number.MAX_SAFE_INTEGER;
-	return Math.min(safeDelay, policy.maxAgentDelayMs ?? DEFAULT_MAX_AGENT_RETRY_DELAY_MS);
+	const cap = policy.maxAgentDelayMs ?? DEFAULT_MAX_AGENT_RETRY_DELAY_MS;
+	const deterministic = Math.min(safeDelay, cap);
+	const ratio =
+		typeof policy.jitterRatio === "number" && Number.isFinite(policy.jitterRatio)
+			? Math.min(Math.max(policy.jitterRatio, 0), 1)
+			: 0;
+	if (ratio === 0) return deterministic;
+	const sample = random();
+	const unit = Number.isFinite(sample) ? Math.min(Math.max(sample, 0), 1) : 0.5;
+	return Math.floor(Math.max(0, Math.min(cap, deterministic * (1 + ratio * (2 * unit - 1)))));
 }
 
 /** Optional callbacks emitted by {@link retryAssistantCall} around each retry. */

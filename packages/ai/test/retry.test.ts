@@ -281,6 +281,23 @@ describe("retryDelayMs", () => {
 		expect(retryDelayMs({ baseDelayMs: 2000, maxAgentDelayMs: 5000 }, 5)).toBe(5000);
 		expect(retryDelayMs({ baseDelayMs: 2000, maxAgentDelayMs: 0 }, 5)).toBe(0);
 	});
+
+	it("applies symmetric jitter from the injected sample and preserves the hard cap", () => {
+		const policy = { baseDelayMs: 1000, maxAgentDelayMs: 10_000, jitterRatio: 0.2 };
+		expect(retryDelayMs(policy, 1, () => 0)).toBe(800);
+		expect(retryDelayMs(policy, 1, () => 0.5)).toBe(1000);
+		expect(retryDelayMs(policy, 1, () => 1)).toBe(1200);
+		expect(retryDelayMs({ ...policy, maxAgentDelayMs: 1000 }, 10, () => 1)).toBe(1000);
+	});
+
+	it("keeps zero and invalid jitter ratios deterministic and clamps invalid samples safely", () => {
+		for (const jitterRatio of [0, -1, Number.NaN, undefined]) {
+			expect(retryDelayMs({ baseDelayMs: 2000, jitterRatio }, 3, () => 0)).toBe(8000);
+		}
+		expect(retryDelayMs({ baseDelayMs: 1000, jitterRatio: 0.2 }, 1, () => Number.NaN)).toBe(1000);
+		expect(retryDelayMs({ baseDelayMs: 1000, jitterRatio: 0.2 }, 1, () => -10)).toBe(800);
+		expect(retryDelayMs({ baseDelayMs: 1000, jitterRatio: 0.2 }, 1, () => 10)).toBe(1200);
+	});
 });
 
 describe("retryAssistantCall", () => {

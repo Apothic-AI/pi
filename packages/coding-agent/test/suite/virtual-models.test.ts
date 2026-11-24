@@ -2,6 +2,7 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { type FauxResponseStep, fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { estimateProjectedContextTokens } from "../../src/core/compaction/compaction.ts";
 import type { ExtensionContext } from "../../src/core/extensions/index.ts";
 import { type ModelRoute, type ModelRouteRequest, VIRTUAL_MODEL_STATE_ENTRY } from "../../src/core/virtual-models.ts";
 import { createHarness, type Harness, type HarnessOptions } from "./harness.ts";
@@ -44,7 +45,7 @@ describe("AgentSession virtual models", () => {
 				{ id: "small", contextWindow: 1000 },
 				{ id: "large", contextWindow: 50_000, maxTokens: 4000, reasoning: true },
 			],
-			tools: [echoTool],
+			tools: [echoTool, ...(options.tools ?? [])],
 			extensionFactories: [
 				...(options.extensionFactories ?? []),
 				(pi) => {
@@ -286,6 +287,106 @@ describe("AgentSession virtual models", () => {
 		expect(harness.eventsOfType("compaction_start").map((event) => event.reason)).toEqual(["threshold"]);
 		expect(compactedBeforeSmall).toBe(true);
 		expect(dispatched()).toEqual(["faux/large:high", "faux/small:off"]);
+	});
+
+	it("threshold-compacts a completed long tool result before the next model request in the same run", async () => {
+		const longTool: AgentTool = {
+			name: "long_echo",
+			label: "Long echo",
+			description: "Returns a deterministic long result",
+			parameters: Type.Object({}),
+			execute: async () => ({ content: [{ type: "text", text: `tool-result ${"z".repeat(24_000)}` }], details: {} }),
+		};
+		const route: Route = (_request, ctx) => ({
+			model: ctx.modelRegistry.find("faux", "large")!,
+			thinkingLevel: "high",
+		});
+		let tokensBeforeCompaction = 0;
+		let toolResultCharsBeforeCompaction = 0;
+		const timeline: string[] = [];
+		const { harness } = await createRoutedHarness(route, {
+			settings: { compaction: { keepRecentTokens: 1, reserveTokens: 45_000 } },
+			tools: [longTool],
+			initialActiveToolNames: ["long_echo"],
+			extensionFactories: [
+				(pi) => {
+					pi.on("session_before_compact", ({ preparation }) => {
+						timeline.push("before_compact");
+						tokensBeforeCompaction = preparation.tokensBefore;
+						toolResultCharsBeforeCompaction = harness.sessionManager
+							.getBranch()
+							.flatMap((entry) =>
+								entry.type === "message" &&
+								entry.message.role === "toolResult" &&
+								entry.message.toolName === "long_echo"
+									? entry.message.content.map((part) => (part.type === "text" ? part.text.length : 0))
+									: [],
+							)
+							.reduce((sum, length) => sum + length, 0);
+					});
+				},
+			],
+		});
+		await harness.session.setModel(harness.session.modelRuntime.getModel("faux", "large")!);
+		const requests: Array<{ compactions: number; toolResultPresent: boolean }> = [];
+		harness.session.subscribe((event) => {
+			if (event.type === "compaction_end") timeline.push(`compaction_end:${event.reason}`);
+		});
+		const prepare = vi.spyOn(harness.session.agent, "prepareNextTurnWithContext");
+		expect(harness.session.getActiveToolNames()).toContain("long_echo");
+		const thresholdSettings = harness.settingsManager.getCompactionSettings(harness.session.model);
+		expect(thresholdSettings).toEqual({ enabled: true, reserveTokens: 45_000, keepRecentTokens: 1 });
+		const beforeRequest = estimateProjectedContextTokens(
+			harness.sessionManager.buildSessionProjection(),
+			harness.sessionManager.getBranch(),
+		).tokens;
+		expect(beforeRequest).toBeLessThan(5_000);
+		harness.setResponses([
+			fauxAssistantMessage(fauxToolCall("long_echo", {}), { stopReason: "toolUse" }),
+			fauxAssistantMessage("summary"),
+			(_context) => {
+				timeline.push("request-2");
+				requests.push({
+					compactions: harness.eventsOfType("compaction_end").length,
+					toolResultPresent: harness.sessionManager
+						.getBranch()
+						.some(
+							(entry) =>
+								entry.type === "message" &&
+								entry.message.role === "toolResult" &&
+								entry.message.toolName === "long_echo",
+						),
+				});
+				return fauxAssistantMessage("continued same task");
+			},
+		]);
+
+		await harness.session.prompt("Use long_echo then continue working in this same task.");
+
+		const toolCall = harness.session.messages.find(
+			(message) => message.role === "assistant" && message.content.some((part) => part.type === "toolCall"),
+		);
+		const toolResult = harness.session.messages.find(
+			(message) => message.role === "toolResult" && message.toolName === "long_echo",
+		);
+		expect(prepare).toHaveBeenCalledTimes(1);
+		expect(requests).toHaveLength(1);
+		expect(tokensBeforeCompaction).toBeGreaterThan(5_000);
+		expect(toolResultCharsBeforeCompaction).toBe(24_012);
+		expect(requests[0]).toEqual({ compactions: 1, toolResultPresent: true });
+		expect(harness.eventsOfType("compaction_end")[0]?.reason).toBe("threshold");
+		expect(timeline.indexOf("compaction_end:threshold")).toBeGreaterThanOrEqual(0);
+		expect(timeline.indexOf("compaction_end:threshold")).toBeLessThan(timeline.indexOf("request-2"));
+		expect(
+			toolCall?.role === "assistant" ? toolCall.content.find((part) => part.type === "toolCall")?.id : undefined,
+		).toBe(toolResult?.role === "toolResult" ? toolResult.toolCallId : undefined);
+		expect(
+			harness.session.messages.some(
+				(message) =>
+					message.role === "assistant" &&
+					message.content.some((part) => part.type === "text" && part.text === "continued same task"),
+			),
+		).toBe(true);
 	});
 
 	it("projects the session once per request under a virtual selection", async () => {
