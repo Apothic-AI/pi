@@ -748,6 +748,26 @@ function sessionCwdMatches(cwd: string | undefined, resolvedCwd: string): boolea
 	return cwd !== undefined && cwd !== "" && pathsEqual(resolvePath(cwd), resolvedCwd);
 }
 
+const SESSION_FILE_ID_PATTERN = /_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i;
+
+/**
+ * The session id a session filename encodes (`<timestamp>_<uuid>.jsonl`), if any.
+ *
+ * Pi writes its own session files under this name, so the filename is a claim about which
+ * session lives in the file. Opening an explicit path must honour that claim rather than
+ * contradict it — see `_setSessionFile`. Exported for testing.
+ */
+export function sessionIdFromSessionFile(filePath: string): string | undefined {
+	const match = SESSION_FILE_ID_PATTERN.exec(basename(filePath));
+	if (!match) return undefined;
+	try {
+		assertValidSessionId(match[1]);
+	} catch {
+		return undefined;
+	}
+	return match[1];
+}
+
 /** Exported for testing */
 export function findMostRecentSession(sessionDir: string, cwd?: string): string | null {
 	const resolvedSessionDir = normalizePath(sessionDir);
@@ -1048,7 +1068,10 @@ export class SessionManager {
 				if (statSync(explicitPath).size > 0) {
 					throw new Error(`Session file is not a valid ${APP_NAME} session: ${explicitPath}`);
 				}
-				this.newSession();
+				// An empty file that names a session must be initialised under that name too,
+				// for the same reason as the missing-file branch below.
+				const idFromFilename = sessionIdFromSessionFile(explicitPath);
+				this.newSession(idFromFilename ? { id: idFromFilename } : undefined);
 				this.sessionFile = explicitPath;
 				this._rewriteFile();
 				this.flushed = true;
@@ -1059,7 +1082,16 @@ export class SessionManager {
 			this.flushed = true;
 		} else {
 			const explicitPath = this.sessionFile;
-			this.newSession();
+			// A named session file that does not exist yet is still *that* session: the caller
+			// asked to open a path, and Pi's own filenames carry the session id. Minting a
+			// random id here writes a header under a filename that names a different session,
+			// so the file contradicts itself: no identity validator can trust it, and
+			// resume-by-id then selects the wrong row. Adopt the filename's id when it has one
+			// (measured 2026-11-25: three lanes were restarted with an explicit --session path
+			// whose file had never been written, and each materialised a header id that no
+			// longer matched the uuid in its own name).
+			const idFromFilename = sessionIdFromSessionFile(explicitPath);
+			this.newSession(idFromFilename ? { id: idFromFilename } : undefined);
 			this.sessionFile = explicitPath; // preserve explicit path from --session flag
 		}
 	}
