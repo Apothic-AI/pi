@@ -120,4 +120,7 @@ it("converges across randomized prepared revisions", () => {
 			expectAliasFree(tracker.value);
 		}
 	}
-});
+	// 100 seeds in one test: ~1.3 s alone, but it is CPU-bound and shares a 12-core box with
+	// the rest of the multi-package suite, where it has exceeded the 5 s default under load.
+	// Measured 2026-11-26; sibling packages use the same 30 s explicit budget.
+}, 30_000);
