@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -18,7 +18,9 @@ function headerIdOf(path: string): string | undefined {
 describe("sessionIdFromSessionFile", () => {
 	it("extracts the uuid Pi encodes in a session filename", () => {
 		expect(
-			sessionIdFromSessionFile("/x/sessions/--home-a-b--/2026-11-25T07-02-45-000Z_01a21183-945d-7000-8000-000000000001.jsonl"),
+			sessionIdFromSessionFile(
+				"/x/sessions/--home-a-b--/2026-11-25T07-02-45-000Z_01a21183-945d-7000-8000-000000000001.jsonl",
+			),
 		).toBe("01a21183-945d-7000-8000-000000000001");
 	});
 
