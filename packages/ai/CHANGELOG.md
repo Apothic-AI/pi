@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Added `jitterRatio` to `RetryPolicy` and to `retryDelayMs`, applying symmetric multiplicative jitter in [0, 1] to each computed backoff delay. `0` — the default — keeps the delay exactly deterministic, so existing callers are unaffected. `retryDelayMs` also accepts an injectable `random` source so the delay is testable without mocking `Math.random`
+
+### Changed
+
+- Removed the Together reasoning-effort overrides for `openai/gpt-oss-20b`, `openai/gpt-oss-120b` and `deepseek-ai/DeepSeek-V4-Pro-0813`. The model catalog no longer lists those models, so the overrides could never match and the provider now falls back to the catalog's own compat for every Together model
+- Changed the Cloudflare Workers AI and AI Gateway default models from `@cf/moonshotai/kimi-k2.7-code` to `@cf/qwen/qwen3.8-27b`, because the catalog no longer lists the Kimi model
+
+### Fixed
+
+- Fixed the Together compatibility map matching models the catalog had dropped, so a removed model ID could still select a stale reasoning format
+
 ## [1.6.1] - 2026-11-25
 
 ### Added

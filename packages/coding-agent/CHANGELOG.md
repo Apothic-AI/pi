@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Added the `retry.jitterRatio` setting (default `0`, range [0, 1]), applying symmetric multiplicative jitter to each retry backoff delay. `0` preserves the previous deterministic delays exactly. See [Retries](docs/settings.md)
+
+### Fixed
+
+- Fixed `--session <path>` adopting the session id encoded in the filename when the file does not exist yet or is empty. Pi's own session files are named `<timestamp>_<uuid>.jsonl`, and minting a random id wrote a header that contradicted that name: no identity validator could trust the file, and resume-by-id then selected the wrong row. An explicit path that names a session now opens as that session
+
 ## [1.6.1] - 2026-11-25
 
 ### New Features

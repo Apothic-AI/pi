@@ -132,6 +132,7 @@ See [Themes](themes.md) and [Terminal Setup](terminal-setup.md) for format and p
 | `retry.maxRetries` | number | `3` | Maximum agent-level retry attempts. |
 | `retry.baseDelayMs` | number | `2000` | Initial exponential-backoff delay in milliseconds. |
 | `retry.maxAgentDelayMs` | number | `60000` | Maximum agent-level retry delay in milliseconds. |
+| `retry.jitterRatio` | number | `0` | Symmetric multiplicative jitter applied to each retry delay, in [0, 1]. `0` keeps delays deterministic; `0.5` spreads a 2000 ms delay across 1000–3000 ms. |
 | `retry.provider.timeoutMs` | number | `httpIdleTimeoutMs` | Provider request timeout in milliseconds. |
 | `retry.provider.maxRetries` | number | `0` | Provider-level retry attempts. |
 | `retry.provider.maxRetryDelayMs` | number | `60000` | Maximum server-requested delay in milliseconds. Set to `0` to disable the limit. |
