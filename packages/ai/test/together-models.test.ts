@@ -41,32 +41,20 @@ describe("Together models", () => {
 		});
 	});
 
-	it("models Together reasoning controls from the Together API surface", () => {
-		const gptOss = getModel("together", "openai/gpt-oss-120b");
-		expect(gptOss.thinkingLevelMap).toEqual({
-			off: null,
-			minimal: null,
-			low: "low",
-			medium: "medium",
-			high: "high",
-			max: null,
-			xhigh: null,
-		});
-		expect(gptOss.compat).toMatchObject({
-			supportsReasoningEffort: true,
-			thinkingFormat: "openai",
-		});
-
-		const deepSeekV4 = getModel("together", "deepseek-ai/DeepSeek-V4-Pro-0813");
-		expect(deepSeekV4.thinkingLevelMap).toEqual({
+	it("models reasoning through the toggle surface the catalog lists", () => {
+		// The catalog used to carry two per-model `reasoning_effort` overrides, keyed on
+		// `openai/gpt-oss-20b`, `openai/gpt-oss-120b` and `deepseek-ai/DeepSeek-V4-Pro-0813`.
+		// None of those ids is in the pinned togetherai catalog any more, so every reasoning
+		// model now takes the toggle surface. If a gpt-oss or DeepSeek-V4-Pro id returns,
+		// this is the test that should force the override decision to be revisited.
+		const deepSeek = getModel("together", "deepseek-ai/DeepSeek-V4.1-Flash");
+		expect(deepSeek.thinkingLevelMap).toEqual({
 			minimal: null,
 			low: null,
 			medium: null,
-			high: "high",
-			xhigh: null,
 		});
-		expect(deepSeekV4.compat).toMatchObject({
-			supportsReasoningEffort: true,
+		expect(deepSeek.compat).toMatchObject({
+			supportsReasoningEffort: false,
 			thinkingFormat: "together",
 		});
 	});
